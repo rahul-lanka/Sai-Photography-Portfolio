@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Gallery</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="client-shell">
+
+  <header class="header">
+    <div class="logo">Sai Frames</div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="gallery.html">Public Gallery</a>
+      <a href="client-gallery.html" class="active">My Gallery</a>
+      <a href="admin.html" id="admin-link" style="display:none;">Admin</a>
+      <button id="login-btn" class="nav-btn">Login</button>
+      <button id="logout-btn" class="nav-btn" style="display:none;">Logout</button>
+    </nav>
+  </header>
+
+  <section class="section page-top client-gallery-page">
+    <div class="section-head" data-reveal>
+      <p class="section-kicker">Client Access</p>
+      <h2>My Events</h2>
+      <p>These are your private event galleries.</p>
+    </div>
+
+    <div id="client-events" class="gallery-grid"></div>
+    <p id="no-events" class="empty-state" style="display:none;">No events available yet.</p>
+  </section>
+
+  <footer>
+    © 2026 Sai Photographer Portfolio
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script type="module" src="js/client-gallery.js"></script>
+  <script type="module" src="js/initAuth.js"></script>
+
+</body>
+</html>

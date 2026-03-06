@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Gallery</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="event-shell">
+    <header class="header">
+    <div class="logo">Sai Frames</div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="contact.html">Contact</a>
+      <a href="admin.html" id="admin-link" style="display:none;">Admin</a>
+
+      <button id="login-btn" class="nav-btn">Login</button>
+<button id="logout-btn" class="nav-btn" style="display:none;">Logout</button>
+
+    </nav>
+  </header>
+   <section class="section event-page page-top">
+    <div class="section-head" data-reveal>
+      <p class="section-kicker">Public Showcase</p>
+      <h2 id="event-title">Event</h2>
+      <p id="event-description">
+        Photos from this event will appear here.
+      </p>
+    </div>
+
+    <!-- <div class="event-placeholder">
+      <p>📸 Event photos coming soon...</p>
+    </div> -->
+    <div id="photos-grid" class="photos-grid"></div>
+<p id="no-photos" class="empty-state" style="display:none;">No photos available for this event.</p>
+
+  </section>
+
+  <footer>
+    © 2026 Sai Photographer Portfolio
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/public-event.js"></script>
+
+  <script type="module" src="js/initAuth.js"></script>
+
+    
+</body>
+</html>
