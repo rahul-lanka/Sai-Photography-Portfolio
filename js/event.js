@@ -80,11 +80,27 @@ if (photosError || !photos || photos.length === 0) {
 }
 
 // 5. Render photos
+const fragment = document.createDocumentFragment();
+
 photos.forEach(photo => {
   const img = document.createElement("img");
   img.src = photo.image_url;
   img.alt = "Event photo";
   img.loading = "lazy";
   img.decoding = "async";
-  grid.appendChild(img);
+  img.classList.add("media-loading");
+
+  img.addEventListener("load", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  img.addEventListener("error", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  fragment.appendChild(img);
 });
+
+grid.appendChild(fragment);

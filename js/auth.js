@@ -2,8 +2,12 @@ import { supabase } from "./supabase.js";
 
 // Login with Google
 export async function login() {
+  const redirectTo = window.location.href;
   await supabase.auth.signInWithOAuth({
     provider: "google",
+    options: {
+      redirectTo,
+    },
   });
 }
 

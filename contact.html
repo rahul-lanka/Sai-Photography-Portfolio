@@ -11,10 +11,11 @@
 
   <!-- HEADER -->
   <header class="header">
-    <div class="logo">Sai Frames</div>
+    <a href="index.html" class="logo" aria-label="Sai Frames home">Sai Frames</a>
     <nav>
       <a href="index.html">Home</a>
       <a href="gallery.html">Gallery</a>
+      <a href="client-gallery.html" id="my-gallery-link" style="display:none;">My Gallery</a>
       <a href="contact.html">Contact</a>
       <a href="admin.html" id="admin-link" style="display:none;">Admin</a>
 
@@ -34,42 +35,140 @@
       </p>
     </div>
 
+    <div class="contact-intro-band" data-reveal>
+      <div class="contact-badge">Fast Reply</div>
+      <p>Share the basics and the form will open WhatsApp with a ready-to-send inquiry message.</p>
+      <div class="contact-pills">
+        <span>Custom quotes</span>
+        <span>48 hour preview</span>
+        <span>Weddings to private events</span>
+      </div>
+    </div>
+
     <div class="contact-box">
       <div class="contact-item" data-reveal>
         <h4>Email</h4>
-        <p>rahulphotography@email.com</p>
+        <p>srivishwakarmaphotostudio@gmail.com</p>
       </div>
 
       <div class="contact-item" data-reveal>
         <h4>Phone</h4>
-        <p>+91 98765 43210</p>
+        <p>+91 80961 66100</p>
       </div>
 
       <div class="contact-item" data-reveal>
         <h4>Address</h4>
         <p>
-          Hyderabad, Telangana<br />
+          Vijayawada, Andhra Pradesh<br />
           India
         </p>
       </div>
     </div>
 
+    <div class="map-panel" data-reveal>
+      <div class="map-copy">
+        <p class="section-kicker">Visit The Studio</p>
+        <h3>Find Us On The Map</h3>
+        <p class="map-note">
+          Easy landmark access for meetings, consultation, and planning your shoot timeline.
+        </p>
+        <div class="map-meta">
+          <span>SRI VISHWAKARMA DESIGNING</span>
+          <span>Hyderabad, Telangana</span>
+        </div>
+        <a
+          class="btn btn-primary"
+          href="https://www.google.com/maps/place/SRI+VISHWAKARMA+DESIGNING/data=!4m2!3m1!1s0x0:0xd50d5d108ac0a43f?sa=X&ved=1t:2428&ictx=111"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open In Google Maps
+        </a>
+      </div>
+      <div class="map-frame-wrap">
+        <iframe
+          class="map-frame"
+          title="Sai Frames studio location"
+          src="https://www.google.com/maps?q=SRI%20VISHWAKARMA%20DESIGNING&output=embed"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
+      </div>
+    </div>
+
     <div class="inquiry-wrap" data-reveal>
-      <h3>Quick Inquiry Form</h3>
+      <div class="inquiry-head">
+        <div>
+          <p class="section-kicker">Quick Inquiry</p>
+          <h3>Build Your Message</h3>
+        </div>
+        <p class="inquiry-caption">This sends a filled-in WhatsApp message instead of silently clearing your details.</p>
+      </div>
       <form class="inquiry-form">
-        <input type="text" placeholder="Your Name" required>
-        <input type="tel" placeholder="Phone Number" required>
-        <input type="text" placeholder="Event Type (Wedding, Birthday, etc.)" required>
-        <input type="date" required>
-        <input type="text" placeholder="Event Location" required>
-        <button type="submit" class="btn btn-primary">Send Inquiry</button>
+        <label>
+          <span>Your Name</span>
+          <input type="text" name="name" placeholder="Your Name" autocomplete="name" required>
+        </label>
+        <label>
+          <span>Phone Number</span>
+          <input type="tel" name="phone" placeholder="Phone Number" autocomplete="tel" required>
+        </label>
+        <label>
+          <span>Event Type</span>
+          <input type="text" name="eventType" placeholder="Wedding, Birthday, Engagement..." required>
+        </label>
+        <label>
+          <span>Event Date</span>
+          <input type="date" name="eventDate" required>
+        </label>
+        <label class="field-wide">
+          <span>Event Location</span>
+          <input type="text" name="location" placeholder="Venue or city" required>
+        </label>
+        <label class="field-wide">
+          <span>Anything Important?</span>
+          <textarea name="details" rows="4" placeholder="Coverage hours, style preferences, guest count, deliverables, budget range..."></textarea>
+        </label>
+        <div class="inquiry-actions">
+          <button type="submit" class="btn btn-primary">Send on WhatsApp</button>
+          <a class="btn btn-ghost" href="mailto:rahulphotography@email.com?subject=Photography%20Inquiry">Email Instead</a>
+        </div>
       </form>
-      <p class="mini-note">Response time: usually within 2 hours.</p>
+      <p class="mini-note" aria-live="polite">Response time: usually within 2 hours.</p>
     </div>
   </section>
 
   <footer>
-    © 2026 Sai Photographer Portfolio
+    <div class="site-footer">
+      <div class="footer-brand">
+        <a href="index.html" class="logo" aria-label="Sai Frames home">Sai Frames</a>
+        <p>Wedding, portrait, and event photography with cinematic color, clean framing, and story-first coverage.</p>
+      </div>
+      <div>
+        <p class="footer-title">Explore</p>
+        <div class="footer-links">
+          <a href="index.html">Home</a>
+          <a href="gallery.html">Gallery</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </div>
+      <div>
+        <p class="footer-title">Contact</p>
+        <div class="footer-contact">
+          <a href="tel:+918096166100">+91 80961 66100</a>
+          <a href="mailto:srivishwakarmaphotostudio@gmail.com">srivishwakarmaphotostudio@gmail.com</a>
+          <span>Vijayawada, Andhra Pradesh</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Sai Frames. All rights reserved.</p>
+      <div class="footer-badges">
+        <span>48 Hour Preview</span>
+        <span>Private Client Delivery</span>
+        <span>Story-First Coverage</span>
+      </div>
+    </div>
   </footer>
   <script src="js/main.js"></script>
   <script type="module" src="js/initAuth.js"></script>

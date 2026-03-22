@@ -35,7 +35,7 @@ import { supabase } from "./supabase.js";
   const status = document.getElementById("status");
 
   uploadBtn.addEventListener("click", async () => {
-    const email = document.getElementById("client-email").value;
+    const email = document.getElementById("client-email").value.trim().toLowerCase();
     const eventType = document.getElementById("event-type").value;
     const files = document.getElementById("photos").files;
 
@@ -56,26 +56,46 @@ import { supabase } from "./supabase.js";
       return;
     }
 
-    // 5. Create event
-    const { data: event, error: eventError } = await supabase
+    // 5. Reuse existing event for this client + type, else create one
+    const { data: existingEvents, error: existingEventError } = await supabase
       .from("events")
-      .insert({ user_id: client.id, type: eventType })
-      .select()
-      .single();
+      .select("id")
+      .eq("user_id", client.id)
+      .eq("type", eventType)
+      .order("id", { ascending: false })
+      .limit(1);
 
-    if (eventError) {
-      alert("Failed to create event");
-      console.error(eventError);
+    if (existingEventError) {
+      alert("Failed to check existing event");
+      console.error(existingEventError);
       return;
+    }
+
+    let eventId = existingEvents?.[0]?.id;
+
+    if (!eventId) {
+      const { data: createdEvent, error: eventError } = await supabase
+        .from("events")
+        .insert({ user_id: client.id, type: eventType })
+        .select("id")
+        .single();
+
+      if (eventError || !createdEvent) {
+        alert("Failed to create event");
+        console.error(eventError);
+        return;
+      }
+
+      eventId = createdEvent.id;
     }
 
     // 6. Upload files
     for (const file of files) {
-      const path = `${client.id}/${event.id}/${file.name}`;
+      const path = `${client.id}/${eventId}/${file.name}`;
 
       const { error: uploadError } = await supabase.storage
         .from("client-photos")
-        .upload(path, file);
+        .upload(path, file, { upsert: true });
 
       if (uploadError) {
         console.error(uploadError);
@@ -86,10 +106,20 @@ import { supabase } from "./supabase.js";
         .from("client-photos")
         .getPublicUrl(path);
 
-      await supabase.from("photos").insert({
-        event_id: event.id,
-        image_url: urlData.publicUrl,
-      });
+      const imageUrl = urlData.publicUrl;
+      const { data: existingPhoto } = await supabase
+        .from("photos")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("image_url", imageUrl)
+        .limit(1);
+
+      if (!existingPhoto || existingPhoto.length === 0) {
+        await supabase.from("photos").insert({
+          event_id: eventId,
+          image_url: imageUrl,
+        });
+      }
     }
 
     status.textContent = "Upload complete!";
