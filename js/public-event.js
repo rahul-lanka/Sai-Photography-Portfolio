@@ -1,3 +1,9 @@
+import { supabase } from "./supabase.js";
+
+function buildUniqueImages(localImages, remoteImages) {
+  return [...new Set([...(localImages || []), ...(remoteImages || [])])];
+}
+
 // PUBLIC EVENT PAGE (NO AUTH)
 (async function loadPublicEvent() {
   const params = new URLSearchParams(window.location.search);
@@ -81,8 +87,10 @@
       title: "Engagement Photography",
       description: "A glimpse of elegant engagement moments captured through our lens.",
       images: [
-        "assets/images/slide1.jpg",
-        "assets/images/slide3.jpg",
+        "assets/Engagement/DSC05435-2.jpg",
+        "assets/Engagement/DSC05441-2.jpg",
+        "assets/Engagement/DSC05442-2.jpg",
+        "assets/Engagement/DSC05455-2.jpg",
       ],
     },
     other: {
@@ -100,7 +108,7 @@
     eventMeta?.description ||
     `A glimpse of beautiful ${formatted.toLowerCase()} moments captured through our lens.`;
 
-  let images = eventMeta?.images;
+  let localImages = eventMeta?.images || [];
 
   if (eventType === "other") {
     try {
@@ -108,7 +116,7 @@
       if (response.ok) {
         const manifest = await response.json();
         if (Array.isArray(manifest?.images)) {
-          images = manifest.images.map(file => `assets/Others/${file}`);
+          localImages = manifest.images.map(file => `assets/Others/${file}`);
         }
       }
     } catch (error) {
@@ -116,7 +124,28 @@
     }
   }
 
-  if (!images || images.length === 0) {
+  let remoteImages = [];
+
+  try {
+    const { data: remotePhotos, error } = await supabase
+      .from("public_gallery_photos")
+      .select("image_url")
+      .eq("event_type", eventType)
+      .eq("is_published", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Failed to load public gallery photos:", error);
+    } else {
+      remoteImages = (remotePhotos || []).map(photo => photo.image_url);
+    }
+  } catch (error) {
+    console.error("Failed to fetch public gallery photos:", error);
+  }
+
+  const images = buildUniqueImages(localImages, remoteImages);
+
+  if (!images.length) {
     noPhotos.style.display = "block";
     noPhotos.textContent = "Photos coming soon.";
     return;

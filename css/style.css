@@ -638,25 +638,45 @@ footer {
 .gallery-card-copy {
   position: absolute;
   inset: auto 0 0;
-  padding: 18px 18px 16px;
+  padding: 30px 20px 20px;
   text-align: left;
-  z-index: 2;
+  z-index: 4;
+  background: linear-gradient(to top, rgba(10, 15, 25, 0.95) 0%, rgba(10, 15, 25, 0.6) 50%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .gallery-card-tag {
-  margin: 0 0 6px;
-  font-size: 0.74rem;
-  letter-spacing: 1.2px;
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--accent-soft);
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.gallery-card h4 {
+  margin: 0;
+  color: white;
+  font-size: 1.4rem;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .gallery-card small {
   display: block;
-  color: rgba(255, 255, 255, 0.84);
-  margin-top: 6px;
-  font-size: 0.87rem;
-  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 8px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  max-width: 90%;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .gallery-card:hover {
@@ -674,11 +694,11 @@ footer {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(to top, rgba(6, 10, 18, 0.92), rgba(6, 10, 18, 0.08));
+  background: radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.1), transparent 35%);
   opacity: 0;
   transition: opacity 0.3s ease;
+  z-index: 5;
+  pointer-events: none;
 }
 
 .gallery-card::before {
@@ -700,17 +720,13 @@ footer {
   pointer-events: none;
 }
 
-.gallery-card span {
-  position: absolute;
-  bottom: 54px;
-  left: 18px;
-  right: 18px;
-  color: white;
-  font-size: 1.2rem;
-  letter-spacing: 0.2px;
-  z-index: 2;
-  transition: transform 0.32s ease, letter-spacing 0.32s ease;
-  font-weight: 700;
+.gallery-card:hover .gallery-card-copy {
+  transform: translateY(-5px);
+}
+
+.gallery-card:hover small {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .gallery-grid .gallery-card:not(.icon-card):nth-child(1) { animation: riseIn 0.55s ease both 0.05s; }
@@ -730,10 +746,7 @@ footer {
   left: 145%;
 }
 
-.gallery-card:hover span {
-  transform: translateY(-3px);
-  letter-spacing: 1px;
-}
+/* Removed old hover span styles */
 
 .gallery-card:active {
   transform: translateY(-4px) scale(0.99);

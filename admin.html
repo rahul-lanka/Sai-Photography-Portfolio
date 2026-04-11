@@ -27,7 +27,13 @@
     </div>
 
     <div class="admin-form" data-reveal>
+      <select id="upload-mode">
+        <option value="private">Private Client Gallery</option>
+        <option value="public">Public Gallery</option>
+      </select>
+
       <input type="email" id="client-email" placeholder="Client Email" />
+      <p id="client-email-hint" class="status-text">Required only for private client gallery uploads.</p>
 
       <select id="event-type">
         <option value="marriage">Marriage</option>
@@ -38,7 +44,7 @@
         <option value="other">Other Events</option>
       </select>
 
-      <input type="file" id="photos" multiple />
+      <input type="file" id="photos" multiple webkitdirectory accept="image/*" />
 
       <button id="upload-btn" class="btn btn-primary">Upload Photos</button>
       <p id="status" class="status-text"></p>
