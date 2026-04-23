@@ -104,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(cta);
   }
 
+  initSmoothMediaLoading();
   initPhotoLightbox();
   initPointerGlow();
 });
@@ -292,6 +293,30 @@ function initPhotoLightbox() {
   lbImg.addEventListener("pointerup", e => {
     dragging = false;
     lbImg.releasePointerCapture(e.pointerId);
+  });
+}
+
+function initSmoothMediaLoading() {
+  const media = document.querySelectorAll(".gallery-card img, .photos-grid img");
+
+  media.forEach(img => {
+    if (!(img instanceof HTMLImageElement)) return;
+
+    if (img.complete && img.naturalWidth > 0) {
+      img.classList.remove("media-loading");
+      img.classList.add("media-ready");
+      return;
+    }
+
+    img.classList.add("media-loading");
+
+    const markReady = () => {
+      img.classList.remove("media-loading");
+      img.classList.add("media-ready");
+    };
+
+    img.addEventListener("load", markReady, { once: true });
+    img.addEventListener("error", markReady, { once: true });
   });
 }
 

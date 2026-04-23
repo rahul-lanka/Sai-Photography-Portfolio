@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v4";
 const CORE_CACHE = `core-${CACHE_VERSION}`;
 const IMAGE_CACHE = `images-${CACHE_VERSION}`;
 
@@ -8,6 +8,8 @@ const CORE_ASSETS = [
   "./gallery.html",
   "./event.html",
   "./contact.html",
+  "./robots.txt",
+  "./sitemap.xml",
   "./client-gallery.html",
   "./client-event.html",
   "./admin.html",

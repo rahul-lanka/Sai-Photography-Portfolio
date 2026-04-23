@@ -1,8 +1,16 @@
 import { supabase } from "./supabase.js";
 
+function getAuthRedirectUrl() {
+  const currentUrl = new URL(window.location.href);
+  const pathParts = currentUrl.pathname.split("/").filter(Boolean);
+  const isGitHubPages = currentUrl.hostname.endsWith("github.io") && pathParts.length > 0;
+  const basePath = isGitHubPages ? `/${pathParts[0]}/` : "/";
+  return new URL(basePath, currentUrl.origin).toString();
+}
+
 // Login with Google
 export async function login() {
-  const redirectTo = window.location.href;
+  const redirectTo = getAuthRedirectUrl();
   await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {

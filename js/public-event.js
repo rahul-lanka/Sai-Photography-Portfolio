@@ -4,6 +4,10 @@ function buildUniqueImages(localImages, remoteImages) {
   return [...new Set([...(localImages || []), ...(remoteImages || [])])];
 }
 
+function toAbsoluteUrl(path) {
+  return new URL(path, window.location.origin).href;
+}
+
 // PUBLIC EVENT PAGE (NO AUTH)
 (async function loadPublicEvent() {
   const params = new URLSearchParams(window.location.search);
@@ -13,6 +17,11 @@ function buildUniqueImages(localImages, remoteImages) {
   const description = document.getElementById("event-description");
   const grid = document.getElementById("photos-grid");
   const noPhotos = document.getElementById("no-photos");
+  const canonical = document.getElementById("event-canonical");
+  const ogTitle = document.getElementById("event-og-title");
+  const ogDescription = document.getElementById("event-og-description");
+  const ogUrl = document.getElementById("event-og-url");
+  const ogImage = document.getElementById("event-og-image");
 
   if (!eventType) {
     title.textContent = "Event";
@@ -108,6 +117,21 @@ function buildUniqueImages(localImages, remoteImages) {
     eventMeta?.description ||
     `A glimpse of beautiful ${formatted.toLowerCase()} moments captured through our lens.`;
 
+  const eventUrl = `https://srivishwakarmaphotography.com/event.html?type=${encodeURIComponent(eventType)}`;
+  const pageTitle = `${eventMeta?.title || `${formatted} Photography`} | Sri Vishwa Karma Photography`;
+  const pageDescription =
+    eventMeta?.description ||
+    `Explore ${formatted.toLowerCase()} photography by Sri Vishwa Karma Photography.`;
+
+  document.title = pageTitle;
+  document
+    .querySelector('meta[name="description"]')
+    ?.setAttribute("content", pageDescription);
+  canonical?.setAttribute("href", eventUrl);
+  ogTitle?.setAttribute("content", pageTitle);
+  ogDescription?.setAttribute("content", pageDescription);
+  ogUrl?.setAttribute("content", eventUrl);
+
   let localImages = eventMeta?.images || [];
 
   if (eventType === "other") {
@@ -145,6 +169,10 @@ function buildUniqueImages(localImages, remoteImages) {
 
   const images = buildUniqueImages(localImages, remoteImages);
 
+  if (images[0]) {
+    ogImage?.setAttribute("content", toAbsoluteUrl(images[0]));
+  }
+
   if (!images.length) {
     noPhotos.style.display = "block";
     noPhotos.textContent = "Photos coming soon.";
@@ -155,11 +183,11 @@ function buildUniqueImages(localImages, remoteImages) {
 
   images.forEach(src => {
     const img = document.createElement("img");
-    img.src = src;
-    img.alt = `${formatted} photo`;
     img.loading = "lazy";
     img.decoding = "async";
     img.classList.add("media-loading");
+    img.alt = `${formatted} photo`;
+    img.src = src;
 
     img.addEventListener("load", () => {
       img.classList.remove("media-loading");
