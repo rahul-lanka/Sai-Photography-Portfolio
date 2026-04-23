@@ -49,6 +49,22 @@
       <button id="upload-btn" class="btn btn-primary">Upload Photos</button>
       <p id="status" class="status-text"></p>
     </div>
+
+    <div class="admin-manager" data-reveal>
+      <div class="manager-head">
+        <div>
+          <p class="section-kicker">Manage Gallery</p>
+          <h3>Delete Existing Photos</h3>
+        </div>
+        <button id="load-existing-btn" class="btn btn-ghost" type="button">Load Photos</button>
+      </div>
+      <p class="manager-note">
+        Use the same mode, event type, and client email above to load photos. For private galleries, the client email is required.
+      </p>
+      <p id="manager-status" class="status-text"></p>
+      <div id="existing-photos-grid" class="admin-photo-grid"></div>
+      <p id="manager-empty" class="empty-state" style="display:none;">No photos found for this selection.</p>
+    </div>
   </section>
 
   <footer>

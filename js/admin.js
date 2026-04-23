@@ -16,6 +16,23 @@ function setStatus(element, message, isError = false) {
   element.style.color = isError ? "#b42318" : "";
 }
 
+function extractStoragePath(imageUrl, bucketName) {
+  if (!imageUrl) return null;
+
+  try {
+    const url = new URL(imageUrl);
+    const marker = `/storage/v1/object/public/${bucketName}/`;
+    const markerIndex = url.pathname.indexOf(marker);
+
+    if (markerIndex === -1) return null;
+
+    return decodeURIComponent(url.pathname.slice(markerIndex + marker.length));
+  } catch (error) {
+    console.error("Failed to parse storage URL", error);
+    return null;
+  }
+}
+
 async function createOrLoadPrivateEvent(clientId, eventType) {
   const { data: existingEvents, error: existingEventError } = await supabase
     .from("events")
@@ -170,6 +187,141 @@ async function uploadPublicGallery({ eventType, files, status }) {
   return uploadedCount;
 }
 
+async function getPrivateEventContext(email, eventType) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: client, error: clientError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .single();
+
+  if (clientError || !client) {
+    throw clientError || new Error("Client not found");
+  }
+
+  const { data: events, error: eventsError } = await supabase
+    .from("events")
+    .select("id")
+    .eq("user_id", client.id)
+    .eq("type", eventType)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (eventsError) {
+    throw eventsError;
+  }
+
+  const eventId = events?.[0]?.id;
+
+  if (!eventId) {
+    return { clientId: client.id, eventId: null };
+  }
+
+  return { clientId: client.id, eventId };
+}
+
+async function loadExistingPublicPhotos(eventType) {
+  const { data, error } = await supabase
+    .from("public_gallery_photos")
+    .select("id, image_url, event_type")
+    .eq("event_type", eventType)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map(photo => ({
+    ...photo,
+    bucket: PUBLIC_BUCKET,
+    galleryTable: "public_gallery_photos",
+  }));
+}
+
+async function loadExistingPrivatePhotos(email, eventType) {
+  const context = await getPrivateEventContext(email, eventType);
+
+  if (!context.eventId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, image_url, event_id")
+    .eq("event_id", context.eventId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map(photo => ({
+    ...photo,
+    bucket: PRIVATE_BUCKET,
+    galleryTable: "photos",
+  }));
+}
+
+async function deleteFromGalleryRecord(photo) {
+  const table = photo.galleryTable;
+  const { error } = await supabase.from(table).delete().eq("id", photo.id);
+  if (error) throw error;
+}
+
+async function deleteFromStorageAndGallery(photo) {
+  const storagePath = extractStoragePath(photo.image_url, photo.bucket);
+
+  if (!storagePath) {
+    throw new Error("Could not determine storage path for this photo");
+  }
+
+  const { error: storageError } = await supabase.storage
+    .from(photo.bucket)
+    .remove([storagePath]);
+
+  if (storageError) throw storageError;
+
+  await deleteFromGalleryRecord(photo);
+}
+
+function createPhotoManagerCard(photo, eventType) {
+  const card = document.createElement("article");
+  card.className = "admin-photo-card";
+  card.dataset.photoId = photo.id;
+
+  const img = document.createElement("img");
+  img.src = photo.image_url;
+  img.alt = `${eventType} photo`;
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.className = "media-loading";
+
+  img.addEventListener("load", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  img.addEventListener("error", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "admin-photo-actions";
+
+  const removeGalleryBtn = document.createElement("button");
+  removeGalleryBtn.type = "button";
+  removeGalleryBtn.className = "btn btn-ghost";
+  removeGalleryBtn.textContent = "Remove from Gallery";
+
+  const deleteStorageBtn = document.createElement("button");
+  deleteStorageBtn.type = "button";
+  deleteStorageBtn.className = "btn btn-primary";
+  deleteStorageBtn.textContent = "Delete from Storage";
+
+  actions.append(removeGalleryBtn, deleteStorageBtn);
+  card.append(img, actions);
+
+  return { card, removeGalleryBtn, deleteStorageBtn };
+}
+
 (async function initAdmin() {
   const { data: sessionData } = await supabase.auth.getSession();
 
@@ -204,6 +356,12 @@ async function uploadPublicGallery({ eventType, files, status }) {
   const clientEmail = document.getElementById("client-email");
   const clientEmailHint = document.getElementById("client-email-hint");
   const photosInput = document.getElementById("photos");
+  const loadExistingBtn = document.getElementById("load-existing-btn");
+  const managerStatus = document.getElementById("manager-status");
+  const existingPhotosGrid = document.getElementById("existing-photos-grid");
+  const managerEmpty = document.getElementById("manager-empty");
+
+  let currentManagedPhotos = [];
 
   function syncUploadModeUI() {
     const isPrivateMode = uploadMode.value === "private";
@@ -222,8 +380,120 @@ async function uploadPublicGallery({ eventType, files, status }) {
     );
   }
 
+  function resetManagerView() {
+    existingPhotosGrid.innerHTML = "";
+    managerEmpty.style.display = "none";
+    currentManagedPhotos = [];
+  }
+
+  function readManagerFilters() {
+    return {
+      mode: uploadMode.value,
+      email: clientEmail.value.trim().toLowerCase(),
+      eventType: document.getElementById("event-type").value,
+    };
+  }
+
+  async function renderManagedPhotos(photos, eventType) {
+    resetManagerView();
+
+    if (!photos.length) {
+      managerEmpty.style.display = "block";
+      setStatus(managerStatus, "No photos found for this selection.");
+      return;
+    }
+
+    currentManagedPhotos = photos;
+    const fragment = document.createDocumentFragment();
+
+    photos.forEach(photo => {
+      const { card, removeGalleryBtn, deleteStorageBtn } = createPhotoManagerCard(photo, eventType);
+
+      removeGalleryBtn.addEventListener("click", async () => {
+        const confirmed = window.confirm("Remove this photo from the gallery listing only?");
+        if (!confirmed) return;
+
+        removeGalleryBtn.disabled = true;
+        deleteStorageBtn.disabled = true;
+        setStatus(managerStatus, "Removing photo from gallery...");
+
+        try {
+          await deleteFromGalleryRecord(photo);
+          card.remove();
+          currentManagedPhotos = currentManagedPhotos.filter(item => item.id !== photo.id);
+          setStatus(managerStatus, "Photo removed from gallery.");
+          if (!currentManagedPhotos.length) {
+            managerEmpty.style.display = "block";
+          }
+        } catch (error) {
+          console.error(error);
+          setStatus(managerStatus, "Failed to remove photo from gallery.", true);
+          removeGalleryBtn.disabled = false;
+          deleteStorageBtn.disabled = false;
+        }
+      });
+
+      deleteStorageBtn.addEventListener("click", async () => {
+        const confirmed = window.confirm("Delete this photo from storage and remove it from the gallery?");
+        if (!confirmed) return;
+
+        removeGalleryBtn.disabled = true;
+        deleteStorageBtn.disabled = true;
+        setStatus(managerStatus, "Deleting photo from storage...");
+
+        try {
+          await deleteFromStorageAndGallery(photo);
+          card.remove();
+          currentManagedPhotos = currentManagedPhotos.filter(item => item.id !== photo.id);
+          setStatus(managerStatus, "Photo deleted from storage and gallery.");
+          if (!currentManagedPhotos.length) {
+            managerEmpty.style.display = "block";
+          }
+        } catch (error) {
+          console.error(error);
+          setStatus(managerStatus, "Failed to delete photo from storage.", true);
+          removeGalleryBtn.disabled = false;
+          deleteStorageBtn.disabled = false;
+        }
+      });
+
+      fragment.appendChild(card);
+    });
+
+    existingPhotosGrid.appendChild(fragment);
+    setStatus(managerStatus, `Loaded ${photos.length} photo${photos.length === 1 ? "" : "s"}.`);
+  }
+
   uploadMode.addEventListener("change", syncUploadModeUI);
   syncUploadModeUI();
+
+  loadExistingBtn.addEventListener("click", async () => {
+    const { mode, email, eventType } = readManagerFilters();
+
+    if (mode === "private" && !email) {
+      alert("Client email is required to manage private gallery photos");
+      return;
+    }
+
+    loadExistingBtn.disabled = true;
+    resetManagerView();
+    setStatus(managerStatus, "Loading existing photos...");
+
+    try {
+      const photos =
+        mode === "private"
+          ? await loadExistingPrivatePhotos(email, eventType)
+          : await loadExistingPublicPhotos(eventType);
+
+      await renderManagedPhotos(photos, eventType);
+    } catch (error) {
+      console.error(error);
+      setStatus(managerStatus, "Failed to load existing photos.", true);
+      managerEmpty.style.display = "block";
+    } finally {
+      loadExistingBtn.disabled = false;
+    }
+  });
 
   uploadBtn.addEventListener("click", async () => {
     const mode = uploadMode.value;
