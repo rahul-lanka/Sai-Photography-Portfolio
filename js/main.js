@@ -175,9 +175,11 @@ function initPhotoLightbox() {
     <div class="lightbox-controls">
       <button class="lb-btn" type="button" data-zoom="in" aria-label="Zoom in">+</button>
       <button class="lb-btn" type="button" data-zoom="out" aria-label="Zoom out">-</button>
-      <button class="lb-btn" type="button" data-zoom="reset" aria-label="Reset zoom">1:1</button>
+      <button class="lb-btn lb-fit-btn" type="button" data-zoom="reset" aria-label="Fit photo to screen">Fit</button>
       <button class="lb-btn" type="button" data-close="true" aria-label="Close">x</button>
     </div>
+    <button class="lb-nav lb-prev" type="button" data-nav="prev" aria-label="Previous photo">&lsaquo;</button>
+    <button class="lb-nav lb-next" type="button" data-nav="next" aria-label="Next photo">&rsaquo;</button>
     <div class="lightbox-stage">
       <img class="lightbox-img" alt="Preview">
     </div>
@@ -190,7 +192,11 @@ function initPhotoLightbox() {
   const zoomOutBtn = lightbox.querySelector('[data-zoom="out"]');
   const zoomResetBtn = lightbox.querySelector('[data-zoom="reset"]');
   const closeBtn = lightbox.querySelector("[data-close]");
+  const prevBtn = lightbox.querySelector('[data-nav="prev"]');
+  const nextBtn = lightbox.querySelector('[data-nav="next"]');
 
+  let activePhotos = [];
+  let activeIndex = 0;
   let scale = 1;
   let tx = 0;
   let ty = 0;
@@ -198,12 +204,54 @@ function initPhotoLightbox() {
   let startX = 0;
   let startY = 0;
 
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function clampPosition() {
+    if (scale <= 1) {
+      tx = 0;
+      ty = 0;
+      return;
+    }
+
+    const stageRect = lbStage.getBoundingClientRect();
+    const maxX = Math.max(0, (lbImg.offsetWidth * scale - stageRect.width) / 2);
+    const maxY = Math.max(0, (lbImg.offsetHeight * scale - stageRect.height) / 2);
+
+    tx = clamp(tx, -maxX, maxX);
+    ty = clamp(ty, -maxY, maxY);
+  }
+
+  function fitImageToStage() {
+    const stageRect = lbStage.getBoundingClientRect();
+    const naturalWidth = lbImg.naturalWidth || 1;
+    const naturalHeight = lbImg.naturalHeight || 1;
+    const imageRatio = naturalWidth / naturalHeight;
+    const stageRatio = stageRect.width / stageRect.height;
+
+    let width = stageRect.width;
+    let height = stageRect.height;
+
+    if (imageRatio > stageRatio) {
+      height = width / imageRatio;
+    } else {
+      width = height * imageRatio;
+    }
+
+    lbImg.style.width = `${Math.floor(width)}px`;
+    lbImg.style.height = `${Math.floor(height)}px`;
+  }
+
   function render() {
+    fitImageToStage();
+    clampPosition();
     lbImg.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    lbImg.classList.toggle("is-zoomed", scale > 1);
   }
 
   function clampScale(value) {
-    return Math.min(4, Math.max(1, value));
+    return clamp(value, 1, 5);
   }
 
   function resetView() {
@@ -213,10 +261,56 @@ function initPhotoLightbox() {
     render();
   }
 
-  function openLightbox(src, alt = "Preview") {
-    lbImg.src = src;
-    lbImg.alt = alt;
+  function zoomAt(nextScale, clientX, clientY) {
+    const previousScale = scale;
+    scale = clampScale(nextScale);
+
+    if (scale === previousScale) return;
+
+    if (scale === 1) {
+      tx = 0;
+      ty = 0;
+      render();
+      return;
+    }
+
+    const stageRect = lbStage.getBoundingClientRect();
+    const originX = clientX - stageRect.left - stageRect.width / 2;
+    const originY = clientY - stageRect.top - stageRect.height / 2;
+    const zoomRatio = scale / previousScale;
+
+    tx = originX - (originX - tx) * zoomRatio;
+    ty = originY - (originY - ty) * zoomRatio;
+    render();
+  }
+
+  function updateNavButtons() {
+    const hasMultiplePhotos = activePhotos.length > 1;
+    prevBtn.hidden = !hasMultiplePhotos;
+    nextBtn.hidden = !hasMultiplePhotos;
+  }
+
+  function showPhoto(index) {
+    if (!activePhotos.length) return;
+
+    activeIndex = (index + activePhotos.length) % activePhotos.length;
+    const photo = activePhotos[activeIndex];
+
     resetView();
+    lbImg.classList.add("is-loading");
+    lbImg.src = photo.src;
+    lbImg.alt = photo.alt || "Photo preview";
+    updateNavButtons();
+
+    if (lbImg.complete && lbImg.naturalWidth > 0) {
+      lbImg.classList.remove("is-loading");
+      resetView();
+    }
+  }
+
+  function openLightbox(photos, index = 0) {
+    activePhotos = photos;
+    showPhoto(index);
     lightbox.classList.add("open");
     document.body.style.overflow = "hidden";
   }
@@ -225,55 +319,106 @@ function initPhotoLightbox() {
     lightbox.classList.remove("open");
     document.body.style.overflow = "";
     lbImg.src = "";
+    activePhotos = [];
+    activeIndex = 0;
+  }
+
+  function showNextPhoto() {
+    showPhoto(activeIndex + 1);
+  }
+
+  function showPreviousPhoto() {
+    showPhoto(activeIndex - 1);
   }
 
   grids.forEach(grid => {
     grid.addEventListener("click", e => {
       const target = e.target;
       if (!(target instanceof HTMLImageElement)) return;
-      openLightbox(target.src, target.alt || "Photo preview");
+
+      const photos = Array.from(grid.querySelectorAll("img"))
+        .filter(img => img instanceof HTMLImageElement && img.src)
+        .map(img => ({
+          src: img.currentSrc || img.src,
+          alt: img.alt || "Photo preview",
+        }));
+      const index = photos.findIndex(photo => photo.src === (target.currentSrc || target.src));
+
+      openLightbox(photos, Math.max(0, index));
     });
   });
 
   zoomInBtn.addEventListener("click", () => {
-    scale = clampScale(scale + 0.2);
-    render();
+    const rect = lbStage.getBoundingClientRect();
+    zoomAt(scale + 0.35, rect.left + rect.width / 2, rect.top + rect.height / 2);
   });
 
   zoomOutBtn.addEventListener("click", () => {
-    scale = clampScale(scale - 0.2);
-    if (scale === 1) {
-      tx = 0;
-      ty = 0;
-    }
-    render();
+    const rect = lbStage.getBoundingClientRect();
+    zoomAt(scale - 0.35, rect.left + rect.width / 2, rect.top + rect.height / 2);
   });
 
   zoomResetBtn.addEventListener("click", resetView);
   closeBtn.addEventListener("click", closeLightbox);
+  prevBtn.addEventListener("click", showPreviousPhoto);
+  nextBtn.addEventListener("click", showNextPhoto);
+
+  lbImg.addEventListener("load", () => {
+    lbImg.classList.remove("is-loading");
+    resetView();
+  });
 
   lightbox.addEventListener("click", e => {
     if (e.target === lightbox) closeLightbox();
   });
 
   window.addEventListener("keydown", e => {
-    if (e.key === "Escape") closeLightbox();
+    if (!lightbox.classList.contains("open")) return;
+
+    if (e.key === "Escape") {
+      closeLightbox();
+      return;
+    }
+
+    const rect = lbStage.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    if (e.key === "+" || e.key === "=") {
+      zoomAt(scale + 0.35, centerX, centerY);
+    }
+
+    if (e.key === "-" || e.key === "_") {
+      zoomAt(scale - 0.35, centerX, centerY);
+    }
+
+    if (e.key === "ArrowRight") {
+      showNextPhoto();
+    }
+
+    if (e.key === "ArrowLeft") {
+      showPreviousPhoto();
+    }
   });
 
   lbStage.addEventListener(
     "wheel",
     e => {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.15 : -0.15;
-      scale = clampScale(scale + delta);
-      if (scale === 1) {
-        tx = 0;
-        ty = 0;
-      }
-      render();
+      const delta = e.deltaY < 0 ? 0.28 : -0.28;
+      zoomAt(scale + delta, e.clientX, e.clientY);
     },
     { passive: false }
   );
+
+  lbStage.addEventListener("dblclick", e => {
+    if (scale > 1) {
+      resetView();
+      return;
+    }
+
+    zoomAt(2.2, e.clientX, e.clientY);
+  });
 
   lbImg.addEventListener("pointerdown", e => {
     if (scale <= 1) return;
@@ -292,7 +437,21 @@ function initPhotoLightbox() {
 
   lbImg.addEventListener("pointerup", e => {
     dragging = false;
-    lbImg.releasePointerCapture(e.pointerId);
+    if (lbImg.hasPointerCapture(e.pointerId)) {
+      lbImg.releasePointerCapture(e.pointerId);
+    }
+  });
+
+  lbImg.addEventListener("pointercancel", e => {
+    dragging = false;
+    if (lbImg.hasPointerCapture(e.pointerId)) {
+      lbImg.releasePointerCapture(e.pointerId);
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (!lightbox.classList.contains("open")) return;
+    render();
   });
 }
 

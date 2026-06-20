@@ -47,6 +47,13 @@
       <input type="file" id="photos" multiple webkitdirectory accept="image/*" />
 
       <button id="upload-btn" class="btn btn-primary">Upload Photos</button>
+      <div id="upload-success" class="upload-success" role="status" aria-live="polite" hidden>
+        <span class="upload-success-icon" aria-hidden="true"></span>
+        <div>
+          <strong id="upload-success-title">Photos uploaded</strong>
+          <p id="upload-success-message">Your gallery is ready.</p>
+        </div>
+      </div>
       <p id="status" class="status-text"></p>
     </div>
 
@@ -59,8 +66,25 @@
         <button id="load-existing-btn" class="btn btn-ghost" type="button">Load Photos</button>
       </div>
       <p class="manager-note">
-        Use the same mode, event type, and client email above to load photos. For private galleries, the client email is required.
+        Choose which gallery photos you want to manage. Client email is only needed for private galleries.
       </p>
+      <div class="manager-controls">
+        <select id="manager-mode" aria-label="Gallery type to manage">
+          <option value="public">Public Gallery</option>
+          <option value="private">Private Client Gallery</option>
+        </select>
+
+        <input type="email" id="manager-client-email" placeholder="Client Email" />
+
+        <select id="manager-event-type" aria-label="Event type to manage">
+          <option value="marriage">Marriage</option>
+          <option value="prewedding">Pre Wedding</option>
+          <option value="birthday">Birthday</option>
+          <option value="baby">Baby Event</option>
+          <option value="engagement">Engagement</option>
+          <option value="other">Other Events</option>
+        </select>
+      </div>
       <p id="manager-status" class="status-text"></p>
       <div id="existing-photos-grid" class="admin-photo-grid"></div>
       <p id="manager-empty" class="empty-state" style="display:none;">No photos found for this selection.</p>

@@ -356,12 +356,35 @@ function createPhotoManagerCard(photo, eventType) {
   const clientEmail = document.getElementById("client-email");
   const clientEmailHint = document.getElementById("client-email-hint");
   const photosInput = document.getElementById("photos");
+  const uploadSuccess = document.getElementById("upload-success");
+  const uploadSuccessTitle = document.getElementById("upload-success-title");
+  const uploadSuccessMessage = document.getElementById("upload-success-message");
   const loadExistingBtn = document.getElementById("load-existing-btn");
   const managerStatus = document.getElementById("manager-status");
   const existingPhotosGrid = document.getElementById("existing-photos-grid");
   const managerEmpty = document.getElementById("manager-empty");
+  const managerMode = document.getElementById("manager-mode");
+  const managerClientEmail = document.getElementById("manager-client-email");
+  const managerEventType = document.getElementById("manager-event-type");
 
   let currentManagedPhotos = [];
+
+  function hideUploadSuccess() {
+    uploadSuccess.hidden = true;
+    uploadSuccess.classList.remove("show");
+  }
+
+  function showUploadSuccess(count, mode, eventType) {
+    const galleryName = mode === "private" ? "private client gallery" : "public gallery";
+    const formattedEventType = eventType.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+    uploadSuccessTitle.textContent = "Upload complete";
+    uploadSuccessMessage.textContent =
+      `${count} photo${count === 1 ? "" : "s"} uploaded to the ${formattedEventType} ${galleryName}.`;
+    uploadSuccess.hidden = false;
+    uploadSuccess.classList.remove("show");
+    requestAnimationFrame(() => uploadSuccess.classList.add("show"));
+  }
 
   function syncUploadModeUI() {
     const isPrivateMode = uploadMode.value === "private";
@@ -372,6 +395,7 @@ function createPhotoManagerCard(photo, eventType) {
     photosInput.setAttribute("multiple", "");
 
     photosInput.value = "";
+    hideUploadSuccess();
     setStatus(
       status,
       isPrivateMode
@@ -388,10 +412,28 @@ function createPhotoManagerCard(photo, eventType) {
 
   function readManagerFilters() {
     return {
-      mode: uploadMode.value,
-      email: clientEmail.value.trim().toLowerCase(),
-      eventType: document.getElementById("event-type").value,
+      mode: managerMode.value,
+      email: managerClientEmail.value.trim().toLowerCase(),
+      eventType: managerEventType.value,
     };
+  }
+
+  function syncManagerModeUI() {
+    const isPrivateMode = managerMode.value === "private";
+    managerClientEmail.style.display = isPrivateMode ? "block" : "none";
+    managerClientEmail.required = isPrivateMode;
+
+    if (!isPrivateMode) {
+      managerClientEmail.value = "";
+    }
+
+    resetManagerView();
+    setStatus(
+      managerStatus,
+      isPrivateMode
+        ? "Enter a client email to load private gallery photos."
+        : "Load public gallery photos for the selected event."
+    );
   }
 
   async function renderManagedPhotos(photos, eventType) {
@@ -466,12 +508,15 @@ function createPhotoManagerCard(photo, eventType) {
 
   uploadMode.addEventListener("change", syncUploadModeUI);
   syncUploadModeUI();
+  managerMode.addEventListener("change", syncManagerModeUI);
+  syncManagerModeUI();
 
   loadExistingBtn.addEventListener("click", async () => {
     const { mode, email, eventType } = readManagerFilters();
 
     if (mode === "private" && !email) {
-      alert("Client email is required to manage private gallery photos");
+      setStatus(managerStatus, "Enter the client email to manage private gallery photos.", true);
+      managerClientEmail.focus();
       return;
     }
 
@@ -512,6 +557,7 @@ function createPhotoManagerCard(photo, eventType) {
     }
 
     uploadBtn.disabled = true;
+    hideUploadSuccess();
     setStatus(status, "Uploading photos...");
 
     try {
@@ -527,6 +573,10 @@ function createPhotoManagerCard(photo, eventType) {
           : "No photos were uploaded. Check the console for failed files.",
         uploadedCount === 0
       );
+
+      if (uploadedCount > 0) {
+        showUploadSuccess(uploadedCount, mode, eventType);
+      }
     } catch (error) {
       console.error(error);
       setStatus(status, "Upload failed. Check the console and Supabase policies.", true);
