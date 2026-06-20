@@ -1397,8 +1397,6 @@ footer {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.18);
   touch-action: none;
 }
 
@@ -1659,6 +1657,10 @@ footer {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.hero-manager-controls {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .admin-photo-grid {

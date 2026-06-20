@@ -2,6 +2,8 @@ import { supabase } from "./supabase.js";
 
 const PUBLIC_BUCKET = "public-gallery";
 const PRIVATE_BUCKET = "client-photos";
+const HOME_HERO_EVENT_TYPE = "home-hero";
+const HOME_HERO_FOLDER = "home-background";
 
 function sanitizeFileName(name) {
   return name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
@@ -189,6 +191,49 @@ async function uploadPublicGallery({ eventType, files, status, onProgress }) {
   return { uploadedCount };
 }
 
+async function uploadHomeHeroPhotos({ files, status, onProgress }) {
+  let uploadedCount = 0;
+
+  for (const file of files) {
+    const safeName = sanitizeFileName(file.name);
+    const path = `${HOME_HERO_FOLDER}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(PUBLIC_BUCKET)
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      console.error(uploadError);
+      continue;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from(PUBLIC_BUCKET)
+      .getPublicUrl(path);
+
+    const imageUrl = urlData.publicUrl;
+    const { error: insertError } = await supabase
+      .from("public_gallery_photos")
+      .insert({
+        event_type: HOME_HERO_EVENT_TYPE,
+        image_url: imageUrl,
+        source: "admin",
+        is_published: true,
+      });
+
+    if (insertError) {
+      console.error(insertError);
+      continue;
+    }
+
+    uploadedCount += 1;
+    onProgress?.(uploadedCount, files.length);
+    setStatus(status, `Uploaded ${uploadedCount} of ${files.length} home background photos...`);
+  }
+
+  return uploadedCount;
+}
+
 async function getPrivateEventContext(email, eventType) {
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -228,6 +273,22 @@ async function loadExistingPublicPhotos(eventType) {
     .from("public_gallery_photos")
     .select("id, image_url, event_type")
     .eq("event_type", eventType)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map(photo => ({
+    ...photo,
+    bucket: PUBLIC_BUCKET,
+    galleryTable: "public_gallery_photos",
+  }));
+}
+
+async function loadHomeHeroPhotos() {
+  const { data, error } = await supabase
+    .from("public_gallery_photos")
+    .select("id, image_url, event_type")
+    .eq("event_type", HOME_HERO_EVENT_TYPE)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -412,6 +473,12 @@ function createPhotoManagerCard(photo, eventType) {
   const uploadSuccessTitle = document.getElementById("upload-success-title");
   const uploadSuccessMessage = document.getElementById("upload-success-message");
   const uploadSuccessActions = document.getElementById("upload-success-actions");
+  const homeHeroPhotosInput = document.getElementById("home-hero-photos");
+  const uploadHomeHeroBtn = document.getElementById("upload-home-hero-btn");
+  const loadHomeHeroBtn = document.getElementById("load-home-hero-btn");
+  const homeHeroStatus = document.getElementById("home-hero-status");
+  const homeHeroGrid = document.getElementById("home-hero-grid");
+  const homeHeroEmpty = document.getElementById("home-hero-empty");
   const loadExistingBtn = document.getElementById("load-existing-btn");
   const managerStatus = document.getElementById("manager-status");
   const existingPhotosGrid = document.getElementById("existing-photos-grid");
@@ -421,6 +488,7 @@ function createPhotoManagerCard(photo, eventType) {
   const managerEventType = document.getElementById("manager-event-type");
 
   let currentManagedPhotos = [];
+  let currentHomeHeroPhotos = [];
 
   function hideUploadSuccess() {
     uploadSuccess.hidden = true;
@@ -605,10 +673,117 @@ function createPhotoManagerCard(photo, eventType) {
     setStatus(managerStatus, `Loaded ${photos.length} photo${photos.length === 1 ? "" : "s"}.`);
   }
 
+  function resetHomeHeroView() {
+    homeHeroGrid.innerHTML = "";
+    homeHeroEmpty.style.display = "none";
+    currentHomeHeroPhotos = [];
+  }
+
+  async function renderHomeHeroPhotos(photos) {
+    resetHomeHeroView();
+
+    if (!photos.length) {
+      homeHeroEmpty.style.display = "block";
+      setStatus(homeHeroStatus, "No home background photos found.");
+      return;
+    }
+
+    currentHomeHeroPhotos = photos;
+    const fragment = document.createDocumentFragment();
+
+    photos.forEach(photo => {
+      const { card, removeGalleryBtn, deleteStorageBtn } = createPhotoManagerCard(photo, "home background");
+      removeGalleryBtn.remove();
+      deleteStorageBtn.textContent = "Delete Background";
+
+      deleteStorageBtn.addEventListener("click", async () => {
+        const confirmed = window.confirm("Delete this home background photo?");
+        if (!confirmed) return;
+
+        deleteStorageBtn.disabled = true;
+        setStatus(homeHeroStatus, "Deleting home background photo...");
+
+        try {
+          await deleteFromStorageAndGallery(photo);
+          card.remove();
+          currentHomeHeroPhotos = currentHomeHeroPhotos.filter(item => item.id !== photo.id);
+          setStatus(homeHeroStatus, "Home background photo deleted.");
+          if (!currentHomeHeroPhotos.length) {
+            homeHeroEmpty.style.display = "block";
+          }
+        } catch (error) {
+          console.error(error);
+          setStatus(homeHeroStatus, "Failed to delete home background photo.", true);
+          deleteStorageBtn.disabled = false;
+        }
+      });
+
+      fragment.appendChild(card);
+    });
+
+    homeHeroGrid.appendChild(fragment);
+    setStatus(homeHeroStatus, `Loaded ${photos.length} home background photo${photos.length === 1 ? "" : "s"}.`);
+  }
+
+  async function refreshHomeHeroPhotos() {
+    loadHomeHeroBtn.disabled = true;
+    resetHomeHeroView();
+    setStatus(homeHeroStatus, "Loading home background photos...");
+
+    try {
+      const photos = await loadHomeHeroPhotos();
+      await renderHomeHeroPhotos(photos);
+    } catch (error) {
+      console.error(error);
+      setStatus(homeHeroStatus, "Failed to load home background photos.", true);
+      homeHeroEmpty.style.display = "block";
+    } finally {
+      loadHomeHeroBtn.disabled = false;
+    }
+  }
+
   uploadMode.addEventListener("change", syncUploadModeUI);
   syncUploadModeUI();
   managerMode.addEventListener("change", syncManagerModeUI);
   syncManagerModeUI();
+  loadHomeHeroBtn.addEventListener("click", refreshHomeHeroPhotos);
+
+  uploadHomeHeroBtn.addEventListener("click", async () => {
+    const files = getSelectedImages(homeHeroPhotosInput.files);
+
+    if (!files.length) {
+      setStatus(homeHeroStatus, "Select at least one home background image.", true);
+      return;
+    }
+
+    uploadHomeHeroBtn.disabled = true;
+    setStatus(homeHeroStatus, "Uploading home background photos...");
+
+    try {
+      const uploadedCount = await uploadHomeHeroPhotos({
+        files,
+        status: homeHeroStatus,
+      });
+
+      setStatus(
+        homeHeroStatus,
+        uploadedCount > 0
+          ? `Upload complete. ${uploadedCount} home background photo${uploadedCount === 1 ? "" : "s"} processed.`
+          : "No home background photos were uploaded.",
+        uploadedCount === 0
+      );
+
+      if (uploadedCount > 0) {
+        homeHeroPhotosInput.value = "";
+        await refreshHomeHeroPhotos();
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus(homeHeroStatus, "Home background upload failed. Check Supabase policies.", true);
+    } finally {
+      uploadHomeHeroBtn.disabled = false;
+    }
+  });
 
   loadExistingBtn.addEventListener("click", async () => {
     const { mode, email, eventType } = readManagerFilters();

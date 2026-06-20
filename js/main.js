@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const hero = document.querySelector(".hero");
 
-  const images = [
+  let images = [
     "assets/images/slide1.jpg",
     "assets/images/slide2.jpg",
     "assets/images/slide3.jpg",
@@ -14,6 +14,13 @@ document.addEventListener("DOMContentLoaded", () => {
     hero.style.backgroundImage = `url(${images[currentIndex]})`;
     currentIndex = (currentIndex + 1) % images.length;
   }
+
+  window.setHomeHeroImages = nextImages => {
+    if (!hero || !Array.isArray(nextImages) || nextImages.length === 0) return;
+    images = nextImages;
+    currentIndex = 0;
+    changeBackgroundImage();
+  };
 
   if (hero) {
     changeBackgroundImage();

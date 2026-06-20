@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v6";
+const CACHE_VERSION = "v7";
 const CORE_CACHE = `core-${CACHE_VERSION}`;
 const IMAGE_CACHE = `images-${CACHE_VERSION}`;
 
@@ -15,6 +15,7 @@ const CORE_ASSETS = [
   "./admin.html",
   "./css/style.css",
   "./js/main.js",
+  "./js/home-hero.js",
   "./js/initAuth.js",
   "./js/public-event.js",
   "./js/client-gallery.js",
