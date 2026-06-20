@@ -183,9 +183,10 @@
   <section class="section testimonials-section">
     <div class="section-head" data-reveal>
       <p class="section-kicker">Client Love</p>
-      <h2>What Clients Say</h2>
+      <h2>Customer Comments</h2>
+      <p>Share your experience and help the next family choose with confidence.</p>
     </div>
-    <div class="testimonial-grid">
+    <div id="customer-comments-grid" class="testimonial-grid">
       <blockquote class="testimonial-card" data-reveal>
         <p>"Our wedding album looked like a movie. Every frame felt emotional."</p>
         <cite>Akhil and Meghana</cite>
@@ -199,6 +200,26 @@
         <cite>Pranav and Siri</cite>
       </blockquote>
     </div>
+    <form id="customer-comment-form" class="comment-form" data-reveal>
+      <div class="comment-form-head">
+        <div>
+          <p class="section-kicker">Add Your Words</p>
+          <h3>Leave A Comment</h3>
+        </div>
+        <select name="rating" aria-label="Rating">
+          <option value="5">5 Stars</option>
+          <option value="4">4 Stars</option>
+          <option value="3">3 Stars</option>
+        </select>
+      </div>
+      <input name="name" type="text" placeholder="Your name" maxlength="80" required>
+      <input name="event_type" type="text" placeholder="Event type, e.g. Wedding" maxlength="80">
+      <textarea name="comment" placeholder="Write your experience..." maxlength="500" required></textarea>
+      <div class="comment-form-actions">
+        <button class="btn btn-primary" type="submit">Submit Comment</button>
+        <p id="customer-comment-status" class="status-text"></p>
+      </div>
+    </form>
   </section>
 
   <section class="section final-cta" data-reveal>
@@ -246,6 +267,7 @@
 
   <script src="js/main.js"></script>
   <script type="module" src="js/home-hero.js"></script>
+  <script type="module" src="js/customer-comments.js"></script>
   <script type="module" src="js/initAuth.js"></script>
 
 </body>

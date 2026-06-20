@@ -4,6 +4,7 @@ const PUBLIC_BUCKET = "public-gallery";
 const PRIVATE_BUCKET = "client-photos";
 const HOME_HERO_EVENT_TYPE = "home-hero";
 const HOME_HERO_FOLDER = "home-background";
+const COMMENTS_TABLE = "customer_comments";
 
 function sanitizeFileName(name) {
   return name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
@@ -300,6 +301,39 @@ async function loadHomeHeroPhotos() {
   }));
 }
 
+async function loadCustomerComments(filter) {
+  let query = supabase
+    .from(COMMENTS_TABLE)
+    .select("id, name, event_type, comment, rating, is_approved, created_at")
+    .order("created_at", { ascending: false });
+
+  if (filter === "pending") {
+    query = query.eq("is_approved", false);
+  }
+
+  if (filter === "approved") {
+    query = query.eq("is_approved", true);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+async function approveCustomerComment(commentId) {
+  const { error } = await supabase
+    .from(COMMENTS_TABLE)
+    .update({ is_approved: true })
+    .eq("id", commentId);
+
+  if (error) throw error;
+}
+
+async function deleteCustomerComment(commentId) {
+  const { error } = await supabase.from(COMMENTS_TABLE).delete().eq("id", commentId);
+  if (error) throw error;
+}
+
 async function loadLocalOtherPhotos() {
   try {
     const response = await fetch("assets/Others/manifest.json", { cache: "no-store" });
@@ -479,6 +513,11 @@ function createPhotoManagerCard(photo, eventType) {
   const homeHeroStatus = document.getElementById("home-hero-status");
   const homeHeroGrid = document.getElementById("home-hero-grid");
   const homeHeroEmpty = document.getElementById("home-hero-empty");
+  const loadCommentsBtn = document.getElementById("load-comments-btn");
+  const commentsFilter = document.getElementById("comments-filter");
+  const commentsStatus = document.getElementById("comments-status");
+  const commentsGrid = document.getElementById("comments-grid");
+  const commentsEmpty = document.getElementById("comments-empty");
   const loadExistingBtn = document.getElementById("load-existing-btn");
   const managerStatus = document.getElementById("manager-status");
   const existingPhotosGrid = document.getElementById("existing-photos-grid");
@@ -489,6 +528,7 @@ function createPhotoManagerCard(photo, eventType) {
 
   let currentManagedPhotos = [];
   let currentHomeHeroPhotos = [];
+  let currentComments = [];
 
   function hideUploadSuccess() {
     uploadSuccess.hidden = true;
@@ -742,11 +782,141 @@ function createPhotoManagerCard(photo, eventType) {
     }
   }
 
+  function renderStars(rating) {
+    const count = Math.max(1, Math.min(5, Number(rating) || 5));
+    return "★".repeat(count);
+  }
+
+  function resetCommentsView() {
+    commentsGrid.innerHTML = "";
+    commentsEmpty.style.display = "none";
+    currentComments = [];
+  }
+
+  function createAdminCommentCard(comment) {
+    const card = document.createElement("article");
+    card.className = "admin-comment-card";
+
+    const meta = document.createElement("div");
+    meta.className = "admin-comment-meta";
+    meta.innerHTML = `
+      <span>${renderStars(comment.rating)}</span>
+      <strong>${comment.is_approved ? "Approved" : "Pending"}</strong>
+    `;
+
+    const quote = document.createElement("p");
+    quote.textContent = comment.comment;
+
+    const byline = document.createElement("small");
+    byline.textContent = `${comment.name}${comment.event_type ? `, ${comment.event_type}` : ""}`;
+
+    const actions = document.createElement("div");
+    actions.className = "admin-comment-actions";
+
+    const approveBtn = document.createElement("button");
+    approveBtn.type = "button";
+    approveBtn.className = "btn btn-ghost";
+    approveBtn.textContent = "Approve";
+    approveBtn.hidden = comment.is_approved;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "btn btn-primary";
+    deleteBtn.textContent = "Delete";
+
+    actions.append(approveBtn, deleteBtn);
+    card.append(meta, quote, byline, actions);
+
+    return { card, approveBtn, deleteBtn };
+  }
+
+  async function renderCustomerComments(comments) {
+    resetCommentsView();
+
+    if (!comments.length) {
+      commentsEmpty.style.display = "block";
+      setStatus(commentsStatus, "No comments found for this filter.");
+      return;
+    }
+
+    currentComments = comments;
+    const fragment = document.createDocumentFragment();
+
+    comments.forEach(comment => {
+      const { card, approveBtn, deleteBtn } = createAdminCommentCard(comment);
+
+      approveBtn.addEventListener("click", async () => {
+        approveBtn.disabled = true;
+        deleteBtn.disabled = true;
+        setStatus(commentsStatus, "Approving comment...");
+
+        try {
+          await approveCustomerComment(comment.id);
+          card.remove();
+          currentComments = currentComments.filter(item => item.id !== comment.id);
+          setStatus(commentsStatus, "Comment approved and visible on the home page.");
+          if (!currentComments.length) commentsEmpty.style.display = "block";
+        } catch (error) {
+          console.error(error);
+          setStatus(commentsStatus, "Failed to approve comment.", true);
+          approveBtn.disabled = false;
+          deleteBtn.disabled = false;
+        }
+      });
+
+      deleteBtn.addEventListener("click", async () => {
+        const confirmed = window.confirm("Delete this customer comment?");
+        if (!confirmed) return;
+
+        approveBtn.disabled = true;
+        deleteBtn.disabled = true;
+        setStatus(commentsStatus, "Deleting comment...");
+
+        try {
+          await deleteCustomerComment(comment.id);
+          card.remove();
+          currentComments = currentComments.filter(item => item.id !== comment.id);
+          setStatus(commentsStatus, "Comment deleted.");
+          if (!currentComments.length) commentsEmpty.style.display = "block";
+        } catch (error) {
+          console.error(error);
+          setStatus(commentsStatus, "Failed to delete comment.", true);
+          approveBtn.disabled = false;
+          deleteBtn.disabled = false;
+        }
+      });
+
+      fragment.appendChild(card);
+    });
+
+    commentsGrid.appendChild(fragment);
+    setStatus(commentsStatus, `Loaded ${comments.length} comment${comments.length === 1 ? "" : "s"}.`);
+  }
+
+  async function refreshCustomerComments() {
+    loadCommentsBtn.disabled = true;
+    resetCommentsView();
+    setStatus(commentsStatus, "Loading customer comments...");
+
+    try {
+      const comments = await loadCustomerComments(commentsFilter.value);
+      await renderCustomerComments(comments);
+    } catch (error) {
+      console.error(error);
+      setStatus(commentsStatus, "Failed to load comments. Check the customer_comments table.", true);
+      commentsEmpty.style.display = "block";
+    } finally {
+      loadCommentsBtn.disabled = false;
+    }
+  }
+
   uploadMode.addEventListener("change", syncUploadModeUI);
   syncUploadModeUI();
   managerMode.addEventListener("change", syncManagerModeUI);
   syncManagerModeUI();
   loadHomeHeroBtn.addEventListener("click", refreshHomeHeroPhotos);
+  loadCommentsBtn.addEventListener("click", refreshCustomerComments);
+  commentsFilter.addEventListener("change", refreshCustomerComments);
 
   uploadHomeHeroBtn.addEventListener("click", async () => {
     const files = getSelectedImages(homeHeroPhotosInput.files);

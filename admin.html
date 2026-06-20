@@ -81,6 +81,29 @@
       <p id="home-hero-empty" class="empty-state" style="display:none;">No home background photos uploaded yet.</p>
     </div>
 
+    <div class="admin-manager comments-manager" data-reveal>
+      <div class="manager-head">
+        <div>
+          <p class="section-kicker">Customer Voice</p>
+          <h3>Review Customer Comments</h3>
+        </div>
+        <button id="load-comments-btn" class="btn btn-ghost" type="button">Load Comments</button>
+      </div>
+      <p class="manager-note">
+        Approve comments to show them on the home page, or delete anything that should not appear publicly.
+      </p>
+      <div class="manager-controls comments-controls">
+        <select id="comments-filter" aria-label="Comment review filter">
+          <option value="pending">Pending Review</option>
+          <option value="approved">Approved</option>
+          <option value="all">All Comments</option>
+        </select>
+      </div>
+      <p id="comments-status" class="status-text"></p>
+      <div id="comments-grid" class="admin-comments-grid"></div>
+      <p id="comments-empty" class="empty-state" style="display:none;">No comments found for this filter.</p>
+    </div>
+
     <div class="admin-manager" data-reveal>
       <div class="manager-head">
         <div>
