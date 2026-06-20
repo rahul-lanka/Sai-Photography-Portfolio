@@ -183,6 +183,9 @@ function initPhotoLightbox() {
     <div class="lightbox-stage">
       <img class="lightbox-img" alt="Preview">
     </div>
+    <div class="lightbox-meta" aria-live="polite">
+      <span class="lightbox-counter">1 / 1</span>
+    </div>
   `;
   document.body.appendChild(lightbox);
 
@@ -194,6 +197,7 @@ function initPhotoLightbox() {
   const closeBtn = lightbox.querySelector("[data-close]");
   const prevBtn = lightbox.querySelector('[data-nav="prev"]');
   const nextBtn = lightbox.querySelector('[data-nav="next"]');
+  const counter = lightbox.querySelector(".lightbox-counter");
 
   let activePhotos = [];
   let activeIndex = 0;
@@ -203,6 +207,8 @@ function initPhotoLightbox() {
   let dragging = false;
   let startX = 0;
   let startY = 0;
+  let swipeStartX = 0;
+  let swipeStartY = 0;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -288,6 +294,9 @@ function initPhotoLightbox() {
     const hasMultiplePhotos = activePhotos.length > 1;
     prevBtn.hidden = !hasMultiplePhotos;
     nextBtn.hidden = !hasMultiplePhotos;
+    counter.textContent = activePhotos.length
+      ? `${activeIndex + 1} / ${activePhotos.length}`
+      : "1 / 1";
   }
 
   function showPhoto(index) {
@@ -418,6 +427,26 @@ function initPhotoLightbox() {
     }
 
     zoomAt(2.2, e.clientX, e.clientY);
+  });
+
+  lbStage.addEventListener("pointerdown", e => {
+    if (scale > 1) return;
+    swipeStartX = e.clientX;
+    swipeStartY = e.clientY;
+  });
+
+  lbStage.addEventListener("pointerup", e => {
+    if (scale > 1 || activePhotos.length < 2) return;
+
+    const dx = e.clientX - swipeStartX;
+    const dy = e.clientY - swipeStartY;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;
+
+    if (dx < 0) {
+      showNextPhoto();
+    } else {
+      showPreviousPhoto();
+    }
   });
 
   lbImg.addEventListener("pointerdown", e => {

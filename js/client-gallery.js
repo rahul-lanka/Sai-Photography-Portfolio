@@ -27,15 +27,42 @@ import { supabase } from "./supabase.js";
     return;
   }
 
+  const eventIds = events.map(event => event.id);
+  const { data: eventPhotos, error: photosError } = await supabase
+    .from("photos")
+    .select("event_id, image_url")
+    .in("event_id", eventIds);
+
+  if (photosError) {
+    console.error("Failed to load gallery photo counts", photosError);
+  }
+
+  const photoMetaByEvent = new Map();
+  (eventPhotos || []).forEach(photo => {
+    const current = photoMetaByEvent.get(photo.event_id) || {
+      count: 0,
+      cover: photo.image_url,
+    };
+
+    current.count += 1;
+    current.cover ||= photo.image_url;
+    photoMetaByEvent.set(photo.event_id, current);
+  });
+
   // 3. Render event cards
   events.forEach(event => {
+    const photoMeta = photoMetaByEvent.get(event.id) || { count: 0, cover: "assets/images/slide1.jpg" };
+    const label = event.type.replace(/-/g, " ");
     const card = document.createElement("a");
     card.href = `client-event.html?eventId=${event.id}`;
     card.className = "gallery-card reveal-in";
 
     card.innerHTML = `
-      <img src="assets/images/slide1.jpg" alt="${event.type}" loading="lazy" decoding="async">
-      <span>${event.type.toUpperCase()}</span>
+      <img src="${photoMeta.cover}" alt="${label}" loading="lazy" decoding="async">
+      <div class="gallery-card-copy">
+        <h4>${label.toUpperCase()}</h4>
+        <small>${photoMeta.count} photo${photoMeta.count === 1 ? "" : "s"}</small>
+      </div>
     `;
 
     container.appendChild(card);

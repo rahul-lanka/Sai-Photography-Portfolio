@@ -47,11 +47,15 @@
       <input type="file" id="photos" multiple webkitdirectory accept="image/*" />
 
       <button id="upload-btn" class="btn btn-primary">Upload Photos</button>
+      <div id="upload-progress" class="upload-progress" hidden>
+        <span id="upload-progress-bar"></span>
+      </div>
       <div id="upload-success" class="upload-success" role="status" aria-live="polite" hidden>
         <span class="upload-success-icon" aria-hidden="true"></span>
         <div>
           <strong id="upload-success-title">Photos uploaded</strong>
           <p id="upload-success-message">Your gallery is ready.</p>
+          <div id="upload-success-actions" class="upload-success-actions"></div>
         </div>
       </div>
       <p id="status" class="status-text"></p>

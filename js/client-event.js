@@ -1,5 +1,60 @@
 import { supabase } from "./supabase.js";
 
+function createPhotoImage(src) {
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "Event photo";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.classList.add("media-loading");
+
+  img.addEventListener("load", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  img.addEventListener("error", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  return img;
+}
+
+function renderPhotosInBatches(grid, photos, batchSize = 12) {
+  let visibleCount = 0;
+  const loadMoreWrap = document.createElement("div");
+  loadMoreWrap.className = "load-more-wrap";
+
+  const loadMoreBtn = document.createElement("button");
+  loadMoreBtn.type = "button";
+  loadMoreBtn.className = "btn btn-ghost load-more-btn";
+  loadMoreWrap.appendChild(loadMoreBtn);
+
+  function renderNextBatch() {
+    const nextPhotos = photos.slice(visibleCount, visibleCount + batchSize);
+    const fragment = document.createDocumentFragment();
+
+    nextPhotos.forEach(photo => {
+      fragment.appendChild(createPhotoImage(photo.image_url));
+    });
+
+    grid.appendChild(fragment);
+    visibleCount += nextPhotos.length;
+
+    const remaining = photos.length - visibleCount;
+    loadMoreBtn.textContent = remaining > 0 ? `Load ${Math.min(batchSize, remaining)} More` : "";
+    loadMoreWrap.hidden = remaining <= 0;
+  }
+
+  loadMoreBtn.addEventListener("click", renderNextBatch);
+  renderNextBatch();
+
+  if (photos.length > batchSize) {
+    grid.insertAdjacentElement("afterend", loadMoreWrap);
+  }
+}
+
 (async function loadClientEvent() {
   // 1. Auth check
   const { data: sessionData } = await supabase.auth.getSession();
@@ -50,29 +105,10 @@ import { supabase } from "./supabase.js";
     return;
   }
 
-  // 4. Render photos
-  const fragment = document.createDocumentFragment();
+  const count = document.createElement("span");
+  count.className = "photo-count-pill";
+  count.textContent = `${photos.length} photo${photos.length === 1 ? "" : "s"}`;
+  title.insertAdjacentElement("afterend", count);
 
-  photos.forEach(photo => {
-    const img = document.createElement("img");
-    img.src = photo.image_url;
-    img.alt = "Event photo";
-    img.loading = "lazy";
-    img.decoding = "async";
-    img.classList.add("media-loading");
-
-    img.addEventListener("load", () => {
-      img.classList.remove("media-loading");
-      img.classList.add("media-ready");
-    });
-
-    img.addEventListener("error", () => {
-      img.classList.remove("media-loading");
-      img.classList.add("media-ready");
-    });
-
-    fragment.appendChild(img);
-  });
-
-  grid.appendChild(fragment);
+  renderPhotosInBatches(grid, photos);
 })();

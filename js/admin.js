@@ -64,7 +64,7 @@ async function createOrLoadPrivateEvent(clientId, eventType) {
   return createdEvent.id;
 }
 
-async function uploadPrivateGallery({ email, eventType, files, status }) {
+async function uploadPrivateGallery({ email, eventType, files, status, onProgress }) {
   const { data: client, error: clientError } = await supabase
     .from("profiles")
     .select("id")
@@ -121,13 +121,14 @@ async function uploadPrivateGallery({ email, eventType, files, status }) {
     }
 
     uploadedCount += 1;
+    onProgress?.(uploadedCount, files.length);
     setStatus(status, `Uploaded ${uploadedCount} of ${files.length} photos...`);
   }
 
-  return uploadedCount;
+  return { uploadedCount, eventId };
 }
 
-async function uploadPublicGallery({ eventType, files, status }) {
+async function uploadPublicGallery({ eventType, files, status, onProgress }) {
   let uploadedCount = 0;
 
   for (const file of files) {
@@ -181,10 +182,11 @@ async function uploadPublicGallery({ eventType, files, status }) {
     }
 
     uploadedCount += 1;
+    onProgress?.(uploadedCount, files.length);
     setStatus(status, `Uploaded ${uploadedCount} of ${files.length} photos...`);
   }
 
-  return uploadedCount;
+  return { uploadedCount };
 }
 
 async function getPrivateEventContext(email, eventType) {
@@ -235,6 +237,40 @@ async function loadExistingPublicPhotos(eventType) {
     bucket: PUBLIC_BUCKET,
     galleryTable: "public_gallery_photos",
   }));
+}
+
+async function loadLocalOtherPhotos() {
+  try {
+    const response = await fetch("assets/Others/manifest.json", { cache: "no-store" });
+    if (!response.ok) return [];
+
+    const manifest = await response.json();
+    if (!Array.isArray(manifest?.images)) return [];
+
+    return manifest.images.map(file => ({
+      id: `local-other-${file}`,
+      image_url: `assets/Others/${file}`,
+      event_type: "other",
+      isLocalAsset: true,
+    }));
+  } catch (error) {
+    console.error("Failed to load local Other photos manifest", error);
+    return [];
+  }
+}
+
+async function loadExistingManageablePublicPhotos(eventType) {
+  const remotePhotos = await loadExistingPublicPhotos(eventType);
+
+  if (eventType !== "other") {
+    return remotePhotos;
+  }
+
+  const localPhotos = await loadLocalOtherPhotos();
+  const remoteUrls = new Set(remotePhotos.map(photo => photo.image_url));
+  const uniqueLocalPhotos = localPhotos.filter(photo => !remoteUrls.has(photo.image_url));
+
+  return [...remotePhotos, ...uniqueLocalPhotos];
 }
 
 async function loadExistingPrivatePhotos(email, eventType) {
@@ -306,6 +342,20 @@ function createPhotoManagerCard(photo, eventType) {
   const actions = document.createElement("div");
   actions.className = "admin-photo-actions";
 
+  if (photo.isLocalAsset) {
+    const badge = document.createElement("span");
+    badge.className = "admin-photo-badge";
+    badge.textContent = "Site asset";
+
+    const note = document.createElement("p");
+    note.className = "admin-photo-note";
+    note.textContent = "This photo is loaded from the website files, so it appears here but cannot be deleted from Supabase.";
+
+    actions.append(badge, note);
+    card.append(img, actions);
+    return { card, removeGalleryBtn: null, deleteStorageBtn: null };
+  }
+
   const removeGalleryBtn = document.createElement("button");
   removeGalleryBtn.type = "button";
   removeGalleryBtn.className = "btn btn-ghost";
@@ -356,9 +406,12 @@ function createPhotoManagerCard(photo, eventType) {
   const clientEmail = document.getElementById("client-email");
   const clientEmailHint = document.getElementById("client-email-hint");
   const photosInput = document.getElementById("photos");
+  const uploadProgress = document.getElementById("upload-progress");
+  const uploadProgressBar = document.getElementById("upload-progress-bar");
   const uploadSuccess = document.getElementById("upload-success");
   const uploadSuccessTitle = document.getElementById("upload-success-title");
   const uploadSuccessMessage = document.getElementById("upload-success-message");
+  const uploadSuccessActions = document.getElementById("upload-success-actions");
   const loadExistingBtn = document.getElementById("load-existing-btn");
   const managerStatus = document.getElementById("manager-status");
   const existingPhotosGrid = document.getElementById("existing-photos-grid");
@@ -372,15 +425,55 @@ function createPhotoManagerCard(photo, eventType) {
   function hideUploadSuccess() {
     uploadSuccess.hidden = true;
     uploadSuccess.classList.remove("show");
+    uploadSuccessActions.innerHTML = "";
   }
 
-  function showUploadSuccess(count, mode, eventType) {
+  function setUploadProgress(uploaded, total) {
+    const percent = total > 0 ? Math.round((uploaded / total) * 100) : 0;
+    uploadProgress.hidden = false;
+    uploadProgressBar.style.width = `${percent}%`;
+    uploadProgress.setAttribute("aria-label", `Upload progress ${percent}%`);
+  }
+
+  function hideUploadProgress() {
+    uploadProgress.hidden = true;
+    uploadProgressBar.style.width = "0%";
+  }
+
+  function showUploadSuccess(count, mode, eventType, email) {
     const galleryName = mode === "private" ? "private client gallery" : "public gallery";
     const formattedEventType = eventType.replace(/([a-z])([A-Z])/g, "$1 $2");
 
     uploadSuccessTitle.textContent = "Upload complete";
     uploadSuccessMessage.textContent =
       `${count} photo${count === 1 ? "" : "s"} uploaded to the ${formattedEventType} ${galleryName}.`;
+    uploadSuccessActions.innerHTML = "";
+
+    if (mode === "public") {
+      const viewLink = document.createElement("a");
+      viewLink.className = "btn btn-ghost";
+      viewLink.href = `event.html?type=${encodeURIComponent(eventType)}`;
+      viewLink.textContent = "View Public Gallery";
+      uploadSuccessActions.appendChild(viewLink);
+    }
+
+    const manageButton = document.createElement("button");
+    manageButton.type = "button";
+    manageButton.className = "btn btn-ghost";
+    manageButton.textContent = "Manage Uploaded Photos";
+    manageButton.addEventListener("click", () => {
+      managerMode.value = mode;
+      managerEventType.value = eventType;
+      syncManagerModeUI();
+      if (mode === "private") {
+        managerClientEmail.value = email;
+      }
+      loadExistingBtn.click();
+      document.querySelector(".admin-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    uploadSuccessActions.appendChild(manageButton);
+
+
     uploadSuccess.hidden = false;
     uploadSuccess.classList.remove("show");
     requestAnimationFrame(() => uploadSuccess.classList.add("show"));
@@ -396,6 +489,7 @@ function createPhotoManagerCard(photo, eventType) {
 
     photosInput.value = "";
     hideUploadSuccess();
+    hideUploadProgress();
     setStatus(
       status,
       isPrivateMode
@@ -450,6 +544,11 @@ function createPhotoManagerCard(photo, eventType) {
 
     photos.forEach(photo => {
       const { card, removeGalleryBtn, deleteStorageBtn } = createPhotoManagerCard(photo, eventType);
+
+      if (photo.isLocalAsset) {
+        fragment.appendChild(card);
+        return;
+      }
 
       removeGalleryBtn.addEventListener("click", async () => {
         const confirmed = window.confirm("Remove this photo from the gallery listing only?");
@@ -528,7 +627,7 @@ function createPhotoManagerCard(photo, eventType) {
       const photos =
         mode === "private"
           ? await loadExistingPrivatePhotos(email, eventType)
-          : await loadExistingPublicPhotos(eventType);
+          : await loadExistingManageablePublicPhotos(eventType);
 
       await renderManagedPhotos(photos, eventType);
     } catch (error) {
@@ -558,13 +657,26 @@ function createPhotoManagerCard(photo, eventType) {
 
     uploadBtn.disabled = true;
     hideUploadSuccess();
+    setUploadProgress(0, files.length);
     setStatus(status, "Uploading photos...");
 
     try {
-      const uploadedCount =
+      const result =
         mode === "private"
-          ? await uploadPrivateGallery({ email, eventType, files, status })
-          : await uploadPublicGallery({ eventType, files, status });
+          ? await uploadPrivateGallery({
+              email,
+              eventType,
+              files,
+              status,
+              onProgress: setUploadProgress,
+            })
+          : await uploadPublicGallery({
+              eventType,
+              files,
+              status,
+              onProgress: setUploadProgress,
+            });
+      const uploadedCount = result.uploadedCount;
 
       setStatus(
         status,
@@ -575,13 +687,16 @@ function createPhotoManagerCard(photo, eventType) {
       );
 
       if (uploadedCount > 0) {
-        showUploadSuccess(uploadedCount, mode, eventType);
+        showUploadSuccess(uploadedCount, mode, eventType, email);
       }
     } catch (error) {
       console.error(error);
       setStatus(status, "Upload failed. Check the console and Supabase policies.", true);
     } finally {
       uploadBtn.disabled = false;
+      if (uploadSuccess.hidden) {
+        hideUploadProgress();
+      }
     }
   });
 })();

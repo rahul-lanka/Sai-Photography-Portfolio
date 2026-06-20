@@ -8,6 +8,71 @@ function toAbsoluteUrl(path) {
   return new URL(path, window.location.origin).href;
 }
 
+function setPhotoCount(total) {
+  const description = document.getElementById("event-description");
+  if (!description || !total) return;
+
+  const count = document.createElement("span");
+  count.className = "photo-count-pill";
+  count.textContent = `${total} photo${total === 1 ? "" : "s"}`;
+  description.insertAdjacentElement("afterend", count);
+}
+
+function createPhotoImage(src, alt) {
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.classList.add("media-loading");
+  img.alt = alt;
+  img.src = src;
+
+  img.addEventListener("load", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  img.addEventListener("error", () => {
+    img.classList.remove("media-loading");
+    img.classList.add("media-ready");
+  });
+
+  return img;
+}
+
+function renderPhotosInBatches({ grid, images, alt, batchSize = 12 }) {
+  let visibleCount = 0;
+  const loadMoreWrap = document.createElement("div");
+  loadMoreWrap.className = "load-more-wrap";
+
+  const loadMoreBtn = document.createElement("button");
+  loadMoreBtn.type = "button";
+  loadMoreBtn.className = "btn btn-ghost load-more-btn";
+  loadMoreWrap.appendChild(loadMoreBtn);
+
+  function renderNextBatch() {
+    const nextImages = images.slice(visibleCount, visibleCount + batchSize);
+    const fragment = document.createDocumentFragment();
+
+    nextImages.forEach(src => {
+      fragment.appendChild(createPhotoImage(src, alt));
+    });
+
+    grid.appendChild(fragment);
+    visibleCount += nextImages.length;
+
+    const remaining = images.length - visibleCount;
+    loadMoreBtn.textContent = remaining > 0 ? `Load ${Math.min(batchSize, remaining)} More` : "";
+    loadMoreWrap.hidden = remaining <= 0;
+  }
+
+  loadMoreBtn.addEventListener("click", renderNextBatch);
+  renderNextBatch();
+
+  if (images.length > batchSize) {
+    grid.insertAdjacentElement("afterend", loadMoreWrap);
+  }
+}
+
 // PUBLIC EVENT PAGE (NO AUTH)
 (async function loadPublicEvent() {
   const params = new URLSearchParams(window.location.search);
@@ -179,28 +244,10 @@ function toAbsoluteUrl(path) {
     return;
   }
 
-  const fragment = document.createDocumentFragment();
-
-  images.forEach(src => {
-    const img = document.createElement("img");
-    img.loading = "lazy";
-    img.decoding = "async";
-    img.classList.add("media-loading");
-    img.alt = `${formatted} photo`;
-    img.src = src;
-
-    img.addEventListener("load", () => {
-      img.classList.remove("media-loading");
-      img.classList.add("media-ready");
-    });
-
-    img.addEventListener("error", () => {
-      img.classList.remove("media-loading");
-      img.classList.add("media-ready");
-    });
-
-    fragment.appendChild(img);
+  setPhotoCount(images.length);
+  renderPhotosInBatches({
+    grid,
+    images,
+    alt: `${formatted} photo`,
   });
-
-  grid.appendChild(fragment);
 })();
