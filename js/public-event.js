@@ -183,10 +183,10 @@ function renderPhotosInBatches({ grid, images, alt, batchSize = 12 }) {
     `A glimpse of beautiful ${formatted.toLowerCase()} moments captured through our lens.`;
 
   const eventUrl = `https://srivishwakarmaphotography.com/event.html?type=${encodeURIComponent(eventType)}`;
-  const pageTitle = `${eventMeta?.title || `${formatted} Photography`} | Sri Vishwa Karma Photography`;
+  const pageTitle = `${eventMeta?.title || `${formatted} Photography`} | sri vishwavarma photography`;
   const pageDescription =
     eventMeta?.description ||
-    `Explore ${formatted.toLowerCase()} photography by Sri Vishwa Karma Photography.`;
+    `Explore ${formatted.toLowerCase()} photography by sri vishwavarma photography.`;
 
   document.title = pageTitle;
   document

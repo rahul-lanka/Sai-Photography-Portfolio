@@ -180,6 +180,7 @@ function initPhotoLightbox() {
     </div>
     <button class="lb-nav lb-prev" type="button" data-nav="prev" aria-label="Previous photo">&lsaquo;</button>
     <button class="lb-nav lb-next" type="button" data-nav="next" aria-label="Next photo">&rsaquo;</button>
+    <div class="lightbox-backdrop-image" aria-hidden="true"></div>
     <div class="lightbox-stage">
       <img class="lightbox-img" alt="Preview">
     </div>
@@ -198,6 +199,7 @@ function initPhotoLightbox() {
   const prevBtn = lightbox.querySelector('[data-nav="prev"]');
   const nextBtn = lightbox.querySelector('[data-nav="next"]');
   const counter = lightbox.querySelector(".lightbox-counter");
+  const backdropImage = lightbox.querySelector(".lightbox-backdrop-image");
 
   let activePhotos = [];
   let activeIndex = 0;
@@ -309,6 +311,7 @@ function initPhotoLightbox() {
     lbImg.classList.add("is-loading");
     lbImg.src = photo.src;
     lbImg.alt = photo.alt || "Photo preview";
+    backdropImage.style.backgroundImage = `url("${photo.src}")`;
     updateNavButtons();
 
     if (lbImg.complete && lbImg.naturalWidth > 0) {
@@ -328,6 +331,7 @@ function initPhotoLightbox() {
     lightbox.classList.remove("open");
     document.body.style.overflow = "";
     lbImg.src = "";
+    backdropImage.style.backgroundImage = "";
     activePhotos = [];
     activeIndex = 0;
   }
